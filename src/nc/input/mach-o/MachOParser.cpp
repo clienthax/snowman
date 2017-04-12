@@ -11,6 +11,7 @@
 #include <nc/common/LogToken.h>
 #include <nc/common/Unreachable.h>
 #include <nc/common/make_unique.h>
+#include <nc/common/Range.h>
 #include <nc/core/image/Image.h>
 #include <nc/core/image/Section.h>
 #include <nc/core/input/ParseError.h>
@@ -78,6 +79,7 @@ class MachOParserImpl {
     const LogToken &log_;
 
     ByteOrder byteOrder_;
+    boost::unordered_map<const core::image::Section *, uint64_t> section2foff_;
     std::vector<const core::image::Section *> sections_;
     std::vector<const core::image::Symbol *> symbols_;
     std::vector<IndirectSection> indirectSections_;
@@ -170,6 +172,10 @@ private:
                 }
                 case LC_DYSYMTAB: {
                     parseDySymtabCommand<Mach>();
+                    break;
+                }
+                case LC_MAIN: {
+                    parseMainCommand<Mach>();
                     break;
                 }
             }
@@ -266,6 +272,7 @@ private:
         }
 
         sections_.push_back(imageSection.get());
+        section2foff_[imageSection.get()]= section.offset;
         image_->addSection(std::move(imageSection));
     }
 
@@ -381,7 +388,28 @@ private:
             }
         }
     }
+    template<class Mach>
+    void parseMainCommand() {
+        entry_point_command command;
+        if (!read(source_, command)) {
+            throw ParseError(tr("Could not read entry point command."));
+        }
+        byteOrder_.convertFrom(command.entryoff);
 
+        log_.debug(tr("Found an entry point offset %1.").arg(command.entryoff));
+        foreach(const auto &section, sections_) {
+            auto offset = nc::find(section2foff_, section);
+            assert(offset);
+
+            if (offset <= command.entryoff && command.entryoff < offset+section->size()) {
+                auto entrypoint = command.entryoff - offset + section->addr();
+
+                log_.debug(tr("Entry point = 0x%1.").arg(entrypoint,8, 16));
+                image_->setEntryPoint(entrypoint);
+                break;
+            }
+        }
+    }
 };
 
 } // anonymous namespace

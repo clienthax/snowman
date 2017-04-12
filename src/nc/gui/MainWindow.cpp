@@ -166,6 +166,9 @@ void MainWindow::createWidgets() {
     progressDialog_->setRange(0, 0);
     progressDialog_->setWindowModality(Qt::WindowModal);
     progressDialog_->setWindowTitle(windowTitle());
+#if QT_VERSION > QT_VERSION_CHECK(5,4,0) //https://bugreports.qt.io/browse/QTBUG-47042
+    progressDialog_->reset();
+#endif
 }
 
 void MainWindow::createActions() {
@@ -652,7 +655,7 @@ void MainWindow::about() {
         "<p>%1 is a native code to C/C++ decompiler.</p>"
         "<p>This is version %2.</p>"
         "<p>%1 supports the following architectures:<ul>"
-        "<li>ARM (little endian, big endian, powered by <a href=\"http://http://www.capstone-engine.org/\">Capstone</a>),</li>"
+        "<li>ARM (little endian, big endian, powered by <a href=\"http://www.capstone-engine.org/\">Capstone</a>),</li>"
         "<li>Intel x86,</li>"
         "<li>Intel x86-64.</li>"
         "</ul></p>"
